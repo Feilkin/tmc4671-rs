@@ -12,7 +12,20 @@ impl<SPI: SpiDevice> Tmc4671<SPI> {
     pub fn new(spi_device: SPI) -> Self {
         Tmc4671 { spi_device }
     }
+}
 
+impl<SPI: SpiDevice> Tmc4671<SPI> {
+    pub async fn get_chip_info(
+        &mut self,
+        info: spi::constants::CHIP_INFO_ADDRESS,
+    ) -> Result<u32, Tmc4671Error> {
+        self.write_register(spi::registers::CHIPINFO_ADDR, info as u32)
+            .await?;
+        self.read_register(spi::registers::CHIPINFO_DATA).await
+    }
+}
+
+impl<SPI: SpiDevice> Tmc4671<SPI> {
     pub async fn read_register(&mut self, register: u8) -> Result<u32, Tmc4671Error> {
         let datagram = Datagram {
             write_not_read: false,
@@ -212,6 +225,21 @@ pub mod spi {
         pub const GPIO_dsADCI_CONFIG: u8 = 0x7B;
         pub const STATUS_FLAGS: u8 = 0x7C;
         pub const STATUS_MASK: u8 = 0x7D;
+    }
+
+    pub mod bit_masks {}
+
+    pub mod constants {
+
+        #[repr(u32)]
+        pub enum CHIP_INFO_ADDRESS {
+            SI_TYPE = 0x00_00_00_00,
+            SI_VERSION = 0x00_00_00_01,
+            SI_DATE = 0x00_00_00_02,
+            SI_TIME = 0x00_00_00_03,
+            SI_VARIANT = 0x00_00_00_04,
+            SI_BUIlD = 0x00_00_00_05,
+        }
     }
 }
 
