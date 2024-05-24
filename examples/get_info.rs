@@ -1,4 +1,5 @@
 #![cfg(unix)]
+use anyhow::Result;
 use embedded_hal_async::spi::Operation::DelayNs;
 use embedded_hal_bus::spi::AtomicDevice;
 use embedded_hal_bus::util::AtomicCell;
@@ -6,12 +7,11 @@ use rppal::gpio;
 use rppal::spi;
 use tmc4671_rs::spi::constants::CHIP_INFO_ADDRESS;
 use tmc4671_rs::Tmc4671;
-
 #[tokio::main]
-async fn main() -> Result<(), ()> {
+async fn main() -> Result<()> {
     let spi_bus = spi::Spi::new(
         spi::Bus::Spi0,
-        spi::SlaveSelect::Ss15,
+        spi::SlaveSelect::Ss1,
         8_000_000,
         spi::Mode::Mode3,
     )?;
