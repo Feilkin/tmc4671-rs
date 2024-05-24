@@ -1,5 +1,8 @@
-/// Crate for commanding the TMC4671 FOC IC over SPI
-use embedded_hal_async::spi::SpiDevice;
+//! Crate for commanding the TMC4671 FOC IC over SPI
+use crate::spi::Datagram;
+use embedded_hal_async::spi::{Error, SpiDevice};
+use nom::Finish;
+use thiserror::Error;
 
 pub struct Tmc4671<SPI: SpiDevice> {
     spi_device: SPI,
@@ -9,11 +12,64 @@ impl<SPI: SpiDevice> Tmc4671<SPI> {
     pub fn new(spi_device: SPI) -> Self {
         Tmc4671 { spi_device }
     }
+
+    pub async fn read_register(&mut self, register: u8) -> Result<u32, Tmc4671Error> {
+        let datagram = Datagram {
+            write_not_read: false,
+            address: register,
+            data: 0x00_00_00_00,
+        };
+
+        let received_datagram = self.transfer_datagram(datagram).await?;
+
+        Ok(received_datagram.data)
+    }
+
+    async fn transfer_datagram(&mut self, datagram: Datagram) -> Result<Datagram, Tmc4671Error> {
+        let mut buffer = datagram.bytes();
+
+        self.spi_device
+            .transfer_in_place(&mut buffer)
+            .await
+            .map_err(|err| Tmc4671Error::CommunicationError(err.kind()))?;
+
+        let (_, received_datagram) = Datagram::parse(&buffer)
+            .finish()
+            .map_err(|_err| Tmc4671Error::ParseError)?;
+
+        debug_assert_eq!(datagram.address, received_datagram.address);
+        Ok(received_datagram)
+    }
+
+    pub async fn write_register(&mut self, register: u8, data: u32) -> Result<(), Tmc4671Error> {
+        let datagram = Datagram {
+            write_not_read: true,
+            address: register,
+            data,
+        };
+
+        let received_datagram = self.transfer_datagram(datagram).await?;
+
+        debug_assert_eq!(datagram.address, received_datagram.address);
+
+        Ok(())
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum Tmc4671Error {
+    #[error("failed to parse data")]
+    ParseError,
+    #[error("SPI communication failed")]
+    CommunicationError(embedded_hal_async::spi::ErrorKind),
 }
 
 pub mod spi {
     use nom::IResult;
 
+    pub const ADDR_WRITE_BIT: u8 = 0b1000_0000;
+
+    #[derive(Debug, Copy, Clone)]
     pub struct Datagram {
         pub write_not_read: bool,
         pub address: u8,
@@ -26,18 +82,39 @@ pub mod spi {
             let (tail, data) = nom::number::streaming::le_u32(tail)?;
 
             let datagram = Datagram {
-                write_not_read: (address_and_write_not_read & 0b1000_0000) != 0,
-                address: address_and_write_not_read & 0b0111_1111,
+                write_not_read: (address_and_write_not_read & ADDR_WRITE_BIT) != 0,
+                address: address_and_write_not_read & !ADDR_WRITE_BIT,
                 data,
             };
 
             Ok((tail, datagram))
         }
+
+        pub fn bytes(&self) -> [u8; 5] {
+            let mut out = [0u8; 5];
+
+            out[0] = self.address;
+            if self.write_not_read {
+                out[0] |= ADDR_WRITE_BIT;
+            }
+
+            out[1..5].copy_from_slice(&self.data.to_le_bytes());
+
+            out
+        }
     }
 
     pub mod registers {
+        // Register names and function descriptions taken from TMC4671-LA datasheet.
+        // ©2022 TRINAMIC Motion Control GmbH & Co. KG, Hamburg, Germany
+
+        /// This register displays name and version information of the accessed IC.
+        /// It can be used for test of communication.
         pub const CHIPINFO_DATA: u8 = 0x00;
+        /// This register is used to change displayed information in register CHIPINFO_DATA.
         pub const CHIPINFO_ADDR: u8 = 0x01;
+        /// This registers displays ADC values.
+        /// The displayed registers can be switched by register ADC_RAW_ADDR.
         pub const ADC_RAW_DATA: u8 = 0x02;
         pub const ADC_RAW_ADDR: u8 = 0x03;
         pub const dsADC_MCFG_B_MCFG_A: u8 = 0x04;
