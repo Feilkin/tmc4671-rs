@@ -7,7 +7,7 @@ use tmc4671_rs::Tmc4671;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut chip = Chip::new("/dev/gpiochip0")?;
+    let mut chip = Chip::new("/dev/gpiochip4")?;
     let eni_line = chip.get_line(23)?;
     let eni_handle = eni_line.request(LineRequestFlags::OUTPUT, 0, "TMC driver")?;
     let eni = CdevPin::new(eni_handle)?;
