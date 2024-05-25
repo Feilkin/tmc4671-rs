@@ -1,11 +1,20 @@
 use anyhow::Result;
+use linux_embedded_hal::spidev::{SpiModeFlags, SpidevOptions};
 use linux_embedded_hal::SpidevDevice;
 use tmc4671_rs::spi::constants::CHIP_INFO_ADDRESS;
 use tmc4671_rs::Tmc4671;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let spi = SpidevDevice::open("/dev/spidev0.0")?;
+    let mut spi = SpidevDevice::open("/dev/spidev0.0")?;
+
+    spi.configure(&SpidevOptions {
+        bits_per_word: None,
+        max_speed_hz: Some(8_000_000),
+        lsb_first: None,
+        spi_mode: Some(SpiModeFlags::SPI_MODE_3),
+    })
+    .except("failed to configure SPI device");
 
     let mut tmc = Tmc4671::new(spi);
 
