@@ -1,11 +1,17 @@
 use anyhow::Result;
+use linux_embedded_hal::gpio_cdev::{Chip, LineRequestFlags};
 use linux_embedded_hal::spidev::{SpiModeFlags, SpidevOptions};
-use linux_embedded_hal::SpidevDevice;
+use linux_embedded_hal::{CdevPin, SpidevDevice, SysfsPin};
 use tmc4671_rs::spi::constants::CHIP_INFO_ADDRESS;
 use tmc4671_rs::Tmc4671;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let mut chip = Chip::new("/dev/gpiochip0")?;
+    let eni_line = chip.get_line(23)?;
+    let eni_handle = eni_line.request(LineRequestFlags::OUTPUT, 0, "TMC driver")?;
+    let eni = CdevPin::new(eni_handle)?;
+
     let mut spi = SpidevDevice::open("/dev/spidev0.0")?;
 
     spi.configure(&SpidevOptions {
@@ -17,6 +23,8 @@ async fn main() -> Result<()> {
     .expect("failed to configure SPI device");
 
     let mut tmc = Tmc4671::new(spi);
+
+    eni.set_value(1)?;
 
     let si_type = tmc.get_chip_info(CHIP_INFO_ADDRESS::SI_TYPE)?;
 
