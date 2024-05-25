@@ -1,6 +1,6 @@
 //! Crate for commanding the TMC4671 FOC IC over SPI
 use crate::spi::Datagram;
-use embedded_hal_async::spi::{Error, SpiDevice};
+use embedded_hal::spi::{Error, SpiDevice};
 use nom::Finish;
 use thiserror::Error;
 
@@ -15,35 +15,33 @@ impl<SPI: SpiDevice> Tmc4671<SPI> {
 }
 
 impl<SPI: SpiDevice> Tmc4671<SPI> {
-    pub async fn get_chip_info(
+    pub fn get_chip_info(
         &mut self,
         info: spi::constants::CHIP_INFO_ADDRESS,
     ) -> Result<u32, Tmc4671Error> {
-        self.write_register(spi::registers::CHIPINFO_ADDR, info as u32)
-            .await?;
-        self.read_register(spi::registers::CHIPINFO_DATA).await
+        self.write_register(spi::registers::CHIPINFO_ADDR, info as u32)?;
+        self.read_register(spi::registers::CHIPINFO_DATA)
     }
 }
 
 impl<SPI: SpiDevice> Tmc4671<SPI> {
-    pub async fn read_register(&mut self, register: u8) -> Result<u32, Tmc4671Error> {
+    pub fn read_register(&mut self, register: u8) -> Result<u32, Tmc4671Error> {
         let datagram = Datagram {
             write_not_read: false,
             address: register,
             data: 0x00_00_00_00,
         };
 
-        let received_datagram = self.transfer_datagram(datagram).await?;
+        let received_datagram = self.transfer_datagram(datagram)?;
 
         Ok(received_datagram.data)
     }
 
-    async fn transfer_datagram(&mut self, datagram: Datagram) -> Result<Datagram, Tmc4671Error> {
+    fn transfer_datagram(&mut self, datagram: Datagram) -> Result<Datagram, Tmc4671Error> {
         let mut buffer = datagram.bytes();
 
         self.spi_device
             .transfer_in_place(&mut buffer)
-            .await
             .map_err(|err| Tmc4671Error::CommunicationError(err.kind()))?;
 
         let (_, received_datagram) = Datagram::parse(&buffer)
@@ -54,14 +52,14 @@ impl<SPI: SpiDevice> Tmc4671<SPI> {
         Ok(received_datagram)
     }
 
-    pub async fn write_register(&mut self, register: u8, data: u32) -> Result<(), Tmc4671Error> {
+    pub fn write_register(&mut self, register: u8, data: u32) -> Result<(), Tmc4671Error> {
         let datagram = Datagram {
             write_not_read: true,
             address: register,
             data,
         };
 
-        let received_datagram = self.transfer_datagram(datagram).await?;
+        let received_datagram = self.transfer_datagram(datagram)?;
 
         debug_assert_eq!(datagram.address, received_datagram.address);
 
@@ -74,7 +72,7 @@ pub enum Tmc4671Error {
     #[error("failed to parse data")]
     ParseError,
     #[error("SPI communication failed")]
-    CommunicationError(embedded_hal_async::spi::ErrorKind),
+    CommunicationError(embedded_hal::spi::ErrorKind),
 }
 
 pub mod spi {
