@@ -24,10 +24,11 @@ fn main() -> Result<()> {
 
     let mut tmc = Tmc4671::new(spi);
 
-    eni.set_value(1)?;
-
     loop {
+        eni.set_value(1)?;
         let si_type = tmc.get_chip_info(CHIP_INFO_ADDRESS::SI_TYPE)?;
+
+        eni.set_value(0)?;
 
         let type_bytes = si_type.to_le_bytes();
         let si_type_str = String::from_utf8_lossy(&type_bytes);
