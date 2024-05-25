@@ -40,9 +40,13 @@ impl<SPI: SpiDevice> Tmc4671<SPI> {
     fn transfer_datagram(&mut self, datagram: Datagram) -> Result<Datagram, Tmc4671Error> {
         let mut buffer = datagram.bytes();
 
+        println!("sent:     {buffer:?}");
+
         self.spi_device
             .transfer_in_place(&mut buffer)
             .map_err(|err| Tmc4671Error::CommunicationError(err.kind()))?;
+
+        println!("received: {buffer:?}");
 
         let (_, received_datagram) = Datagram::parse(&buffer)
             .finish()
