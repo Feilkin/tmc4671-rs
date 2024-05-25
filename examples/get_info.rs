@@ -30,7 +30,7 @@ fn main() -> Result<()> {
 
         eni.set_value(0)?;
 
-        let type_bytes = si_type.to_le_bytes();
+        let type_bytes = si_type.to_be_bytes();
         let si_type_str = String::from_utf8_lossy(&type_bytes);
 
         println!("SI_TYPE:\t{si_type_str}");
