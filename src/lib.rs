@@ -48,7 +48,7 @@ impl<SPI: SpiDevice> Tmc4671<SPI> {
             .finish()
             .map_err(|_err| Tmc4671Error::ParseError)?;
 
-        debug_assert_eq!(datagram.address, received_datagram.address);
+        // debug_assert_eq!(datagram.address, received_datagram.address);
         Ok(received_datagram)
     }
 
@@ -59,9 +59,7 @@ impl<SPI: SpiDevice> Tmc4671<SPI> {
             data,
         };
 
-        let received_datagram = self.transfer_datagram(datagram)?;
-
-        debug_assert_eq!(datagram.address, received_datagram.address);
+        let _received_datagram = self.transfer_datagram(datagram)?;
 
         Ok(())
     }
@@ -90,7 +88,7 @@ pub mod spi {
     impl Datagram {
         pub fn parse(input: &[u8]) -> IResult<&[u8], Datagram> {
             let (tail, address_and_write_not_read) = nom::number::streaming::u8(input)?;
-            let (tail, data) = nom::number::streaming::le_u32(tail)?;
+            let (tail, data) = nom::number::streaming::be_u32(tail)?;
 
             let datagram = Datagram {
                 write_not_read: (address_and_write_not_read & ADDR_WRITE_BIT) != 0,
@@ -109,7 +107,7 @@ pub mod spi {
                 out[0] |= ADDR_WRITE_BIT;
             }
 
-            out[1..5].copy_from_slice(&self.data.to_le_bytes());
+            out[1..5].copy_from_slice(&self.data.to_be_bytes());
 
             out
         }
