@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
         lsb_first: None,
         spi_mode: Some(SpiModeFlags::SPI_MODE_3),
     })
-    .except("failed to configure SPI device");
+    .expect("failed to configure SPI device");
 
     let mut tmc = Tmc4671::new(spi);
 
