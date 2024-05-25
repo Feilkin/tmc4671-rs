@@ -11,7 +11,8 @@ async fn main() -> Result<()> {
 
     let si_type = tmc.get_chip_info(CHIP_INFO_ADDRESS::SI_TYPE)?;
 
-    let si_type_str = String::from_utf8_lossy(&si_type.to_le_bytes());
+    let type_bytes = si_type.to_le_bytes();
+    let si_type_str = String::from_utf8_lossy(&type_bytes);
 
     println!("SI_TYPE:\t{si_type_str}");
 
